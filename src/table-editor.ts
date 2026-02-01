@@ -134,7 +134,7 @@ export class TableEditor {
    * Resets the smart cursor.
    * Call this method when the table editor is inactivated.
    */
-  public resetSmartCursor(): void {
+  public async resetSmartCursor(): Promise<void> {
     this._scActive = false;
   }
 
@@ -145,7 +145,7 @@ export class TableEditor {
    *
    * @returns `true` if the cursor is in a table row.
    */
-  public cursorIsInTable(options: Options): boolean {
+  public async cursorIsInTable(options: Options): Promise<boolean> {
     const re = _createIsTableRowRegex(options.leftMarginChars);
     const pos = this._textEditor.getCursorPosition();
     return (
@@ -160,7 +160,7 @@ export class TableEditor {
    *
    * @returns `true` if the cursor is in a formula row.
    */
-  public cursorIsInTableFormula(options: Options): boolean {
+  public async cursorIsInTableFormula(options: Options): Promise<boolean> {
     const formulaRe = _createIsTableFormulaRegex(options.leftMarginChars);
     const pos = this._textEditor.getCursorPosition();
     return (
@@ -323,10 +323,10 @@ export class TableEditor {
   /**
    * Formats the table under the cursor.
    */
-  public format(options: Options): void {
-    this.withCompletedTable(
+  public async format(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, table, focus }: TableInfo) => {
+      async ({ range, lines, table, focus }: TableInfo): Promise<void> => {
         const newFocus = focus;
         // apply
         this._textEditor.transact(() => {
@@ -345,7 +345,7 @@ export class TableEditor {
   /**
    * Formats and escapes from the table.
    */
-  public escape(options: Options): void {
+  public async escape(options: Options): Promise<void> {
     this._withTable(options, ({ range, lines, table, focus }: TableInfo) => {
       // complete
       const completed = completeTable(table, options);
@@ -376,17 +376,20 @@ export class TableEditor {
         }
         this._textEditor.setCursorPosition(newPos);
       });
-      this.resetSmartCursor();
+      void this.resetSmartCursor();
     });
   }
 
   /**
    * Alters the alignment of the focused column.
    */
-  public alignColumn(alignment: Alignment, options: Options): void {
-    this.withCompletedTable(
+  public async alignColumn(
+    alignment: Alignment,
+    options: Options,
+  ): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, table, focus }: TableInfo) => {
+      async ({ range, lines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // alter alignment
         let altered = table;
@@ -418,10 +421,10 @@ export class TableEditor {
   /**
    * Selects the focused cell content.
    */
-  public selectCell(options: Options): void {
-    this.withCompletedTable(
+  public async selectCell(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, table, focus }: TableInfo) => {
+      async ({ range, lines, table, focus }: TableInfo): Promise<void> => {
         const newFocus = focus;
         // apply
         this._textEditor.transact(() => {
@@ -443,14 +446,14 @@ export class TableEditor {
    * @param rowOffset - Offset in row.
    * @param columnOffset - Offset in column.
    */
-  public moveFocus(
+  public async moveFocus(
     rowOffset: number,
     columnOffset: number,
     options: Options,
-  ): void {
-    this.withCompletedTable(
+  ): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, table, focus }: TableInfo) => {
+      async ({ range, lines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         const startFocus = newFocus;
         // move focus
@@ -502,7 +505,7 @@ export class TableEditor {
           }
         });
         if (moved) {
-          this.resetSmartCursor();
+          void this.resetSmartCursor();
         }
       },
     );
@@ -511,7 +514,7 @@ export class TableEditor {
   /**
    * Moves the focus to the next cell.
    */
-  public nextCell(options: Options): void {
+  public async nextCell(options: Options): Promise<void> {
     this._withTable(options, ({ range, lines, table, focus }: TableInfo) => {
       // reset smart cursor if moved
       const focusMoved =
@@ -520,7 +523,7 @@ export class TableEditor {
         (this._scLastFocus !== undefined &&
           !focus.posEquals(this._scLastFocus));
       if (this._scActive && focusMoved) {
-        this.resetSmartCursor();
+        void this.resetSmartCursor();
       }
       let newFocus = focus;
       // complete
@@ -609,10 +612,10 @@ export class TableEditor {
   /**
    * Moves the focus to the previous cell.
    */
-  public previousCell(options: Options): void {
-    this.withCompletedTable(
+  public async previousCell(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, table, focus }: TableInfo) => {
+      async ({ range, lines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         const startFocus = newFocus;
         // move focus
@@ -654,7 +657,7 @@ export class TableEditor {
           }
         });
         if (moved) {
-          this.resetSmartCursor();
+          void this.resetSmartCursor();
         }
       },
     );
@@ -663,7 +666,7 @@ export class TableEditor {
   /**
    * Moves the focus to the next row.
    */
-  public nextRow(options: Options): void {
+  public async nextRow(options: Options): Promise<void> {
     this._withTable(options, ({ range, lines, table, focus }: TableInfo) => {
       // reset smart cursor if moved
       const focusMoved =
@@ -672,7 +675,7 @@ export class TableEditor {
         (this._scLastFocus !== undefined &&
           !focus.posEquals(this._scLastFocus));
       if (this._scActive && focusMoved) {
-        this.resetSmartCursor();
+        void this.resetSmartCursor();
       }
       let newFocus = focus;
       // complete
@@ -746,10 +749,10 @@ export class TableEditor {
   /**
    * Inserts an empty row at the current focus.
    */
-  public insertRow(options: Options): void {
-    this.withCompletedTable(
+  public async insertRow(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // move focus
         if (newFocus.row <= 1) {
@@ -764,7 +767,7 @@ export class TableEditor {
           new TableRow(row, '', ''),
         );
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -779,10 +782,10 @@ export class TableEditor {
   /**
    * Deletes a row at the current focus.
    */
-  public deleteRow(options: Options): void {
-    this.withCompletedTable(
+  public async deleteRow(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // delete a row
         let altered = table;
@@ -797,7 +800,7 @@ export class TableEditor {
           }
         }
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -815,10 +818,10 @@ export class TableEditor {
    *
    * @param offset - An offset the row is moved by.
    */
-  public moveRow(offset: number, options: Options): void {
-    this.withCompletedTable(
+  public async moveRow(offset: number, options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // move row
         let altered = table;
@@ -831,7 +834,7 @@ export class TableEditor {
           newFocus = newFocus.setRow(dest);
         }
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -843,22 +846,22 @@ export class TableEditor {
     );
   }
 
-  public evaluateFormulas(options: Options): Error | undefined {
-    return this.withCompletedTable(
+  public async evaluateFormulas(options: Options): Promise<Error | undefined> {
+    return this.withCompletedTableAsync(
       options,
-      ({
+      async ({
         range,
         lines,
         formulaLines,
         table,
         focus,
-      }: TableInfo): Error | undefined => {
+      }: TableInfo): Promise<Error | undefined> => {
         const result = table.applyFormulas(formulaLines);
         if (result.isErr()) {
           return result.error;
         }
 
-        const { table: formattedTable, focus: newFocus } = this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -867,6 +870,7 @@ export class TableEditor {
           focus,
           false,
         );
+        return undefined;
       },
     );
   }
@@ -875,10 +879,10 @@ export class TableEditor {
    * Transpose rows and columns of a table by inverting the X and Y axis values.
    * @param options 
    */
-  public transpose(options: Options): void {
-    this.withCompletedTable(
+  public async transpose(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
 
         const width: number = table.getWidth();
         const height: number = table.getHeight();
@@ -939,7 +943,7 @@ export class TableEditor {
 
         const newTable = new Table(newRows);
 
-        const { table: formattedTable, focus: newFocus } = this.formatAndApply(
+        const { table: formattedTable, focus: newFocus } = await this.formatAndApply(
           options,
           range,
           lines,
@@ -957,10 +961,13 @@ export class TableEditor {
    * If all cells in the sorting column are numbers, the column is sorted
    * numerically.
    */
-  public sortRows(sortOrder: SortOrder, options: Options): void {
-    this.withCompletedTable(
+  public async sortRows(
+    sortOrder: SortOrder,
+    options: Options,
+  ): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         const bodyRows = table.getRows().slice(2);
 
         const isNumber = (s: string): boolean =>
@@ -1005,7 +1012,7 @@ export class TableEditor {
         const allRows = table.getRows().slice(0, 2).concat(bodyRows);
         const newTable = new Table(allRows);
 
-        const { table: formattedTable, focus: newFocus } = this.formatAndApply(
+        const { table: formattedTable, focus: newFocus } = await this.formatAndApply(
           options,
           range,
           lines,
@@ -1022,10 +1029,10 @@ export class TableEditor {
   /**
    * Inserts an empty column at the current focus.
    */
-  public insertColumn(options: Options): void {
-    this.withCompletedTable(
+  public async insertColumn(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // move focus
         if (newFocus.row === 1) {
@@ -1038,7 +1045,7 @@ export class TableEditor {
         const column = new Array(table.getHeight() - 1).fill(new TableCell(''));
         const altered = insertColumn(table, newFocus.column, column, options);
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -1053,10 +1060,10 @@ export class TableEditor {
   /**
    * Deletes a column at the current focus.
    */
-  public deleteColumn(options: Options): void {
-    this.withCompletedTable(
+  public async deleteColumn(options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // move focus
         if (newFocus.row === 1) {
@@ -1076,7 +1083,7 @@ export class TableEditor {
           }
         }
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -1094,10 +1101,10 @@ export class TableEditor {
    *
    * @param offset - An offset the column is moved by.
    */
-  public moveColumn(offset: number, options: Options): void {
-    this.withCompletedTable(
+  public async moveColumn(offset: number, options: Options): Promise<void> {
+    this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<void> => {
         let newFocus = focus;
         // move column
         let altered = table;
@@ -1113,7 +1120,7 @@ export class TableEditor {
           newFocus = newFocus.setColumn(dest);
         }
 
-        this.formatAndApply(
+        await this.formatAndApply(
           options,
           range,
           lines,
@@ -1128,7 +1135,7 @@ export class TableEditor {
   /**
    * Formats all the tables in the text editor.
    */
-  public formatAll(options: Options): void {
+  public async formatAll(options: Options): Promise<void> {
     this._textEditor.transact(() => {
       const re = _createIsTableRowRegex(options.leftMarginChars);
       let pos = this._textEditor.getCursorPosition();
@@ -1241,13 +1248,13 @@ export class TableEditor {
   /**
    * Exports the table as a two dimensional string array
    */
-  public exportTable(
+  public async exportTable(
     withtHeaders: boolean,
     options: Options,
-  ): string[][] | undefined {
-    return this.withCompletedTable(
+  ): Promise<string[][] | undefined> {
+    return this.withCompletedTableAsync(
       options,
-      ({ range, lines, formulaLines, table, focus }: TableInfo) => {
+      async ({ range, lines, formulaLines, table, focus }: TableInfo): Promise<string[][]> => {
         const bodyRows = table.getRows();
         if (bodyRows.length > 0 && !withtHeaders) {
           bodyRows.splice(0, 2);
@@ -1263,11 +1270,11 @@ export class TableEditor {
   /**
    * Exports the table as a two dimensional string array
    */
-  public exportCSV(
+  public async exportCSV(
     withtHeaders: boolean,
     options: Options,
-  ): string | undefined {
-    const r = this.exportTable(withtHeaders, options);
+  ): Promise<string | undefined> {
+    const r = await this.exportTable(withtHeaders, options);
     return !r ? undefined : r.map((row) => row.join('\t')).join('\n');
   }
 
@@ -1301,11 +1308,41 @@ export class TableEditor {
   }
 
   /**
+   * Finds a table, completes it, then does an async operation with it.
+   *
+   * @param func - A function that does some operation on table information obtained by
+   * {@link TableEditor#_findTable}.
+   */
+  private async withCompletedTableAsync<T>(
+    options: Options,
+    func: (tableInfo: TableInfo) => Promise<T> | T,
+  ): Promise<T | undefined> {
+    const tableInfo = this._findTable(options);
+    if (tableInfo === undefined) {
+      return undefined;
+    }
+
+    let newFocus = tableInfo.focus;
+    const completed = completeTable(tableInfo.table, options);
+    if (completed.delimiterInserted && newFocus.row > 0) {
+      newFocus = newFocus.setRow(newFocus.row + 1);
+    }
+    const formatted = formatTable(completed.table, options);
+    newFocus = newFocus.setOffset(
+      _computeNewOffset(newFocus, completed.table, formatted, false),
+    );
+
+    tableInfo.table = formatted.table;
+    tableInfo.focus = newFocus;
+    return func(tableInfo);
+  }
+
+  /**
    * Formats the table and applies any changes based on the difference between
    * originalLines and the newTable. Should generally be the last function call
    * in a TableEditor function.
    */
-  private formatAndApply(
+  private async formatAndApply(
     options: Options,
     range: Range,
     originalLines: string[],
@@ -1313,7 +1350,7 @@ export class TableEditor {
     newTable: Table,
     newFocus: Focus,
     moved = false,
-  ): TableInfo {
+  ): Promise<TableInfo> {
     // format
     const formatted = formatTable(newTable, options);
     newFocus = newFocus.setOffset(
@@ -1333,7 +1370,7 @@ export class TableEditor {
         this._moveToFocus(range.start.row, formatted.table, newFocus);
       }
     });
-    this.resetSmartCursor();
+    await this.resetSmartCursor();
     return {
       range,
       lines: originalLines,
