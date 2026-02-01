@@ -145,7 +145,7 @@ export class TableEditor {
    *
    * @returns `true` if the cursor is in a table row.
    */
-  public async cursorIsInTable(options: Options): Promise<boolean> {
+  public cursorIsInTable(options: Options): boolean {
     const re = _createIsTableRowRegex(options.leftMarginChars);
     const pos = this._textEditor.getCursorPosition();
     return (
@@ -160,7 +160,7 @@ export class TableEditor {
    *
    * @returns `true` if the cursor is in a formula row.
    */
-  public async cursorIsInTableFormula(options: Options): Promise<boolean> {
+  public cursorIsInTableFormula(options: Options): boolean {
     const formulaRe = _createIsTableFormulaRegex(options.leftMarginChars);
     const pos = this._textEditor.getCursorPosition();
     return (

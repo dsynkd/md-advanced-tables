@@ -21,7 +21,8 @@
     "eslint": "eslint src --ext .ts --fix",
     "test": "mocha -r ts-node/register 'test/*.ts'",
     "build": "tsc",
-    "repl": "ts-node"
+    "repl": "ts-node",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
