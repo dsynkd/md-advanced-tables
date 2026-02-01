@@ -170,157 +170,6 @@ export class TableEditor {
   }
 
   /**
-   * Finds a table under the current cursor position.
-   *
-   * @returns undefined if there is no table or the determined focus is invalid.
-   */
-  _findTable(options: Options): TableInfo | undefined {
-    const re = _createIsTableRowRegex(options.leftMarginChars);
-    const formulaRe = _createIsTableFormulaRegex(options.leftMarginChars);
-    let pos = this._textEditor.getCursorPosition();
-    const lastRow = this._textEditor.getLastRow();
-    const lines = [];
-    const formulaLines = [];
-    let startRow = pos.row;
-    let endRow = pos.row; // endRow is last line before fomulas
-
-    // if the cursor is on formula line, work up until we find the last row of the table
-    {
-      let line = this._textEditor.getLine(pos.row);
-      while (formulaRe.test(line) && pos.row >= 0) {
-        pos = new Point(pos.row - 1, pos.column);
-        endRow--;
-        line = this._textEditor.getLine(pos.row);
-      }
-    }
-
-    // current line
-    {
-      const line = this._textEditor.getLine(pos.row);
-      if (!this._textEditor.acceptsTableEdit(pos.row) || !re.test(line)) {
-        return undefined;
-      }
-      lines.push(line);
-    }
-    // previous lines
-    for (let row = pos.row - 1; row >= 0; row--) {
-      const line = this._textEditor.getLine(row);
-      if (!this._textEditor.acceptsTableEdit(row) || !re.test(line)) {
-        break;
-      }
-      lines.unshift(line);
-      startRow = row;
-    }
-    // next lines
-    for (let row = pos.row + 1; row <= lastRow; row++) {
-      const line = this._textEditor.getLine(row);
-      if (!this._textEditor.acceptsTableEdit(row) || !re.test(line)) {
-        break;
-      }
-      lines.push(line);
-      endRow = row;
-    }
-    // formula lines
-    for (let row = endRow + 1; row <= lastRow; row++) {
-      const line = this._textEditor.getLine(row);
-      if (!this._textEditor.acceptsTableEdit(row) || !formulaRe.test(line)) {
-        break;
-      }
-      formulaLines.push(line);
-    }
-    const range = new Range(
-      new Point(startRow, 0),
-      new Point(endRow, lines[lines.length - 1].length),
-    );
-    const table = readTable(lines, options);
-    const focus = table.focusOfPosition(pos, startRow);
-    if (focus === undefined) {
-      // TODO: Validate this for correctness
-      return undefined;
-    }
-    return { range, lines, formulaLines, table, focus };
-  }
-
-  /**
-   * Finds a table and does an operation with it.
-   *
-   * @private
-   * @param func - A function that does some operation on table information obtained by
-   * {@link TableEditor#_findTable}.
-   */
-  _withTable<T>(
-    options: Options,
-    func: (tableInfo: TableInfo) => T,
-  ): T | undefined {
-    const info = this._findTable(options);
-    if (info === undefined) {
-      return;
-    }
-    return func(info);
-  }
-
-  /**
-   * Updates lines in a given range in the text editor.
-   *
-   * @private
-   * @param startRow - Start row index, starts from `0`.
-   * @param endRow - End row index.
-   * Lines from `startRow` to `endRow - 1` are replaced.
-   * @param newLines - New lines.
-   * @param [oldLines=undefined] - Old lines to be replaced.
-   */
-  _updateLines(
-    startRow: number,
-    endRow: number,
-    newLines: string[],
-    oldLines: string[] | undefined = undefined,
-  ): void {
-    if (oldLines !== undefined) {
-      // apply the shortest edit script
-      // if a table is edited in a normal manner, the edit distance never exceeds 3
-      const ses = shortestEditScript(oldLines, newLines, 3);
-      if (ses !== undefined) {
-        applyEditScript(this._textEditor, ses, startRow);
-        return;
-      }
-    }
-    this._textEditor.replaceLines(startRow, endRow, newLines);
-  }
-
-  /**
-   * Moves the cursor position to the focused cell,
-   *
-   * @private
-   * @param startRow - Row index where the table starts in the text editor.
-   * @param table - A table.
-   * @param focus - A focus to which the cursor will be moved.
-   */
-  _moveToFocus(startRow: number, table: Table, focus: Focus): void {
-    const pos = table.positionOfFocus(focus, startRow);
-    if (pos !== undefined) {
-      this._textEditor.setCursorPosition(pos);
-    }
-  }
-
-  /**
-   * Selects the focused cell.
-   * If the cell has no content to be selected, then just moves the cursor position.
-   *
-   * @private
-   * @param startRow - Row index where the table starts in the text editor.
-   * @param table - A table.
-   * @param focus - A focus to be selected.
-   */
-  _selectFocus(startRow: number, table: Table, focus: Focus): void {
-    const range = table.selectionRangeOfFocus(focus, startRow);
-    if (range !== undefined) {
-      this._textEditor.setSelectionRange(range);
-    } else {
-      this._moveToFocus(startRow, table, focus);
-    }
-  }
-
-  /**
    * Formats the table under the cursor.
    */
   public async format(options: Options): Promise<void> {
@@ -1276,6 +1125,157 @@ export class TableEditor {
   ): Promise<string | undefined> {
     const r = await this.exportTable(withtHeaders, options);
     return !r ? undefined : r.map((row) => row.join('\t')).join('\n');
+  }
+
+  /**
+   * Finds a table under the current cursor position.
+   *
+   * @returns undefined if there is no table or the determined focus is invalid.
+   */
+  private _findTable(options: Options): TableInfo | undefined {
+    const re = _createIsTableRowRegex(options.leftMarginChars);
+    const formulaRe = _createIsTableFormulaRegex(options.leftMarginChars);
+    let pos = this._textEditor.getCursorPosition();
+    const lastRow = this._textEditor.getLastRow();
+    const lines = [];
+    const formulaLines = [];
+    let startRow = pos.row;
+    let endRow = pos.row; // endRow is last line before fomulas
+
+    // if the cursor is on formula line, work up until we find the last row of the table
+    {
+      let line = this._textEditor.getLine(pos.row);
+      while (formulaRe.test(line) && pos.row >= 0) {
+        pos = new Point(pos.row - 1, pos.column);
+        endRow--;
+        line = this._textEditor.getLine(pos.row);
+      }
+    }
+
+    // current line
+    {
+      const line = this._textEditor.getLine(pos.row);
+      if (!this._textEditor.acceptsTableEdit(pos.row) || !re.test(line)) {
+        return undefined;
+      }
+      lines.push(line);
+    }
+    // previous lines
+    for (let row = pos.row - 1; row >= 0; row--) {
+      const line = this._textEditor.getLine(row);
+      if (!this._textEditor.acceptsTableEdit(row) || !re.test(line)) {
+        break;
+      }
+      lines.unshift(line);
+      startRow = row;
+    }
+    // next lines
+    for (let row = pos.row + 1; row <= lastRow; row++) {
+      const line = this._textEditor.getLine(row);
+      if (!this._textEditor.acceptsTableEdit(row) || !re.test(line)) {
+        break;
+      }
+      lines.push(line);
+      endRow = row;
+    }
+    // formula lines
+    for (let row = endRow + 1; row <= lastRow; row++) {
+      const line = this._textEditor.getLine(row);
+      if (!this._textEditor.acceptsTableEdit(row) || !formulaRe.test(line)) {
+        break;
+      }
+      formulaLines.push(line);
+    }
+    const range = new Range(
+      new Point(startRow, 0),
+      new Point(endRow, lines[lines.length - 1].length),
+    );
+    const table = readTable(lines, options);
+    const focus = table.focusOfPosition(pos, startRow);
+    if (focus === undefined) {
+      // TODO: Validate this for correctness
+      return undefined;
+    }
+    return { range, lines, formulaLines, table, focus };
+  }
+
+  /**
+   * Finds a table and does an operation with it.
+   *
+   * @private
+   * @param func - A function that does some operation on table information obtained by
+   * {@link TableEditor#_findTable}.
+   */
+  private _withTable<T>(
+    options: Options,
+    func: (tableInfo: TableInfo) => T,
+  ): T | undefined {
+    const info = this._findTable(options);
+    if (info === undefined) {
+      return;
+    }
+    return func(info);
+  }
+
+  /**
+   * Updates lines in a given range in the text editor.
+   *
+   * @private
+   * @param startRow - Start row index, starts from `0`.
+   * @param endRow - End row index.
+   * Lines from `startRow` to `endRow - 1` are replaced.
+   * @param newLines - New lines.
+   * @param [oldLines=undefined] - Old lines to be replaced.
+   */
+  private _updateLines(
+    startRow: number,
+    endRow: number,
+    newLines: string[],
+    oldLines: string[] | undefined = undefined,
+  ): void {
+    if (oldLines !== undefined) {
+      // apply the shortest edit script
+      // if a table is edited in a normal manner, the edit distance never exceeds 3
+      const ses = shortestEditScript(oldLines, newLines, 3);
+      if (ses !== undefined) {
+        applyEditScript(this._textEditor, ses, startRow);
+        return;
+      }
+    }
+    this._textEditor.replaceLines(startRow, endRow, newLines);
+  }
+
+  /**
+   * Moves the cursor position to the focused cell,
+   *
+   * @private
+   * @param startRow - Row index where the table starts in the text editor.
+   * @param table - A table.
+   * @param focus - A focus to which the cursor will be moved.
+   */
+  private _moveToFocus(startRow: number, table: Table, focus: Focus): void {
+    const pos = table.positionOfFocus(focus, startRow);
+    if (pos !== undefined) {
+      this._textEditor.setCursorPosition(pos);
+    }
+  }
+
+  /**
+   * Selects the focused cell.
+   * If the cell has no content to be selected, then just moves the cursor position.
+   *
+   * @private
+   * @param startRow - Row index where the table starts in the text editor.
+   * @param table - A table.
+   * @param focus - A focus to be selected.
+   */
+  private _selectFocus(startRow: number, table: Table, focus: Focus): void {
+    const range = table.selectionRangeOfFocus(focus, startRow);
+    if (range !== undefined) {
+      this._textEditor.setSelectionRange(range);
+    } else {
+      this._moveToFocus(startRow, table, focus);
+    }
   }
 
   /**
